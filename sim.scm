@@ -61,12 +61,29 @@
             (let* ((instruction (car prog))
                    (opcode (car instruction)))
               (case opcode
-                    ((jump) (loop (cadr instruction)))
-                    ((jump-if-zero) (if (zero? *accumulator*) (loop (cadr instruction)) (loop (cdr prog))))
-                    ((jump-if-neg)  (if (< *accumulator* 0)   (loop (cadr instruction)) (loop (cdr prog))))
-                    (else
-                     (begin (apply (car instruction) (cdr instruction))
-                            (loop (cdr prog)))))))))
+                ((jump) (loop (cadr instruction)))
+                ((jump-if-zero) (if (zero? *accumulator*) (loop (cadr instruction)) (loop (cdr prog))))
+                ((jump-if-neg)  (if (< *accumulator* 0)   (loop (cadr instruction)) (loop (cdr prog))))
+                (else
+                 (begin (apply (car instruction) (cdr instruction))
+                        (loop (cdr prog)))))))))
+
+;;;;;;
+(define (convert-program lis)
+  (let loop ((lis lis)
+             (dest ()))
+    (if (null? lis)
+        (reverse dest)
+        (let* ((ins (car lis))
+               (op (car ins)))
+          (cond
+           ((symbol? op) (let* ((str (symbol->string op))
+                                (first (string-ref str 0)))
+                           (if (eq? first #\:) ; label
+                               (todo)
+                               (let ((proc (eval (string->symbol (string-append "hrm-" str "!")) ())))
+                                 (loop (cdr lis) (cons (cons proc (cdr ins)) dest)))
+                                 ))))))))
 
 ;;;;;;;;;;;
 
@@ -95,3 +112,18 @@
 (set! *input* (list 1 2 3 4 5 6 7 8 9 10 0))
 (memory-set! 0 0)                       ; initialize
 (hrm-execute! program-add-all)
+
+;;;;;;;;;
+
+(define program-add-converted
+  (convert-program
+   '((inbox)
+     (copyto 0)
+     (inbox)
+     (add 0)
+     (outbox))
+   ))
+
+(set! *input* (list 1 2 3 4 5 6 7 8 9 10 0))
+(memory-set! 0 0)                       ; initialize
+(hrm-execute! program-add-converted)
