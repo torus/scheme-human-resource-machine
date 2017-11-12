@@ -1,5 +1,7 @@
 # Human Resource Machine Simulator
 
+Simulator for [Human Resource Machine](https://tomorrowcorporation.com/humanresourcemachine).
+
 ### System Requirements
 
 - Gauche Scheme interpretor 0.9.5 or above
