@@ -23,7 +23,8 @@
 (define-record-type hrm-state #t #t
   (memory)
   (accumulator)
-  (inputs))
+  (inputs)
+  (outbox-proc))
 
 (define (memory-value stat addr) (vector-ref (hrm-state-memory stat) addr))
 (define (memory-set! stat addr val) (vector-set! (hrm-state-memory stat) addr val))
@@ -59,7 +60,7 @@
     (set! (hrm-state-inputs stat) (cdr (hrm-state-inputs stat)))))
 
 (define (hrm-outbox! stat)
-  (print (hrm-state-accumulator stat))
+  ((hrm-state-outbox-proc stat) (hrm-state-accumulator stat))
   (set! (hrm-state-accumulator stat) #f))
 
 (define (hrm-execute! stat prog)
@@ -116,10 +117,11 @@
     init
     ))
 
-(define stat (make-hrm-state (make-vector 25 #f) #f ()))
-(set! (hrm-state-inputs stat) (list 1 2 3 4 5 6 7 8 9 10 0))
-(memory-set! stat 0 0)                       ; initialize
-(hrm-execute! stat program-add-all)
+(hrm-execute! (make-hrm-state (make-vector 1 0)
+                              #f
+                              (list 1 2 3 4 5 6 7 8 9 10 0)
+                              print)
+              program-add-all)
 
 ;;;;;;;;;
 
@@ -132,9 +134,11 @@
      (outbox))
    ))
 
-(set! (hrm-state-inputs stat) (list 1 2 3 4 5 6 7 8 9 10 0))
-(memory-set! stat 0 0)                       ; initialize
-(hrm-execute! stat program-add-converted)
+(hrm-execute! (make-hrm-state (make-vector 1 0)
+                              #f
+                              (list 1 2 3 4 5 6 7 8 9 10 0)
+                              print)
+              program-add-converted)
 
 ;;;;;;;;;;;;;;;;
 
