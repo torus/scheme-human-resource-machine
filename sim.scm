@@ -14,58 +14,65 @@
 ;; - inbox
 ;; - outbox
 
-(define *memory* (make-vector 25 #f))
-(define *accumulator* #f)
-(define *input* ())
+;(define *memory* (make-vector 25 #f))
+;(define *accumulator* #f)
+;(define *input* ())
 
-(define (memory-value addr) (vector-ref *memory* addr))
-(define (memory-set! addr val) (vector-set! *memory* addr val))
-(define (indirectize proc) (lambda (addr . rest) (apply proc (memory-value addr) rest)))
+(use gauche.record)
 
-(define (hrm-copyfrom! addr) (set! *accumulator* (memory-value addr)))
+(define-record-type hrm-state #t #t
+  (memory)
+  (accumulator)
+  (inputs))
+
+(define (memory-value stat addr) (vector-ref (hrm-state-memory stat) addr))
+(define (memory-set! stat addr val) (vector-set! (hrm-state-memory stat) addr val))
+(define (indirectize proc) (lambda (stat addr . rest) (apply proc stat (memory-value stat addr) rest)))
+
+(define (hrm-copyfrom! stat addr) (set! (hrm-state-accumulator stat) (memory-value stat addr)))
 (define hrm-copyfrom-ind! (indirectize hrm-copyfrom!))
 
-(define (hrm-copyto! addr) (memory-set! addr *accumulator*))
+(define (hrm-copyto! stat addr) (memory-set! stat addr (hrm-state-accumulator stat)))
 (define hrm-copyto-ind! (indirectize hrm-copyto!))
 
-(define (hrm-sub! addr) (set! *accumulator* (- *accumulator* (memory-value addr))))
+(define (hrm-sub! stat addr) (set! (hrm-state-accumulator stat) (- (hrm-state-accumulator stat) (memory-value stat addr))))
 (define hrm-sub-ind! (indirectize hrm-sub!))
 
-(define (hrm-add! addr) (set! *accumulator* (+ *accumulator* (memory-value addr))))
+(define (hrm-add! stat addr) (set! (hrm-state-accumulator stat) (+ (hrm-state-accumulator stat) (memory-value stat addr))))
 (define hrm-add-ind! (indirectize hrm-add!))
 
-(define (hrm-bump+! addr)
-  (let ((new-value (+ (memory-value addr) 1)))
-    (memory-set! addr new-value)
-    (set! *accumulator* new-value)))
+(define (hrm-bump+! stat addr)
+  (let ((new-value (+ (memory-value stat addr) 1)))
+    (memory-set! stat addr new-value)
+    (set! (hrm-state-accumulator stat) new-value)))
 (define hrm-bump+-ind! (indirectize hrm-bump+!))
 
-(define (hrm-bump-! addr)
-  (let ((new-value (- (memory-value addr) 1)))
-    (memory-set! addr new-value)
-    (set! *accumulator* new-value)))
+(define (hrm-bump-! stat addr)
+  (let ((new-value (- (memory-value stat addr) 1)))
+    (memory-set! stat addr new-value)
+    (set! (hrm-state-accumulator stat) new-value)))
 (define hrm-bump--ind! (indirectize hrm-bump-!))
 
-(define (hrm-inbox!)
-  (let ((top (car *input*)))
-    (set! *accumulator* top)
-    (set! *input* (cdr *input*))))
+(define (hrm-inbox! stat)
+  (let ((top (car (hrm-state-inputs stat))))
+    (set! (hrm-state-accumulator stat) top)
+    (set! (hrm-state-inputs stat) (cdr (hrm-state-inputs stat)))))
 
-(define (hrm-outbox!)
-  (print *accumulator*)
-  (set! *accumulator* #f))
+(define (hrm-outbox! stat)
+  (print (hrm-state-accumulator stat))
+  (set! (hrm-state-accumulator stat) #f))
 
-(define (hrm-execute! prog)
+(define (hrm-execute! stat prog)
   (let loop ((prog prog))
     (unless (null? prog)
             (let* ((instruction (car prog))
                    (opcode (car instruction)))
               (case opcode
                 ((jump) (loop (cadr instruction)))
-                ((jump-if-zero) (if (zero? *accumulator*) (loop (cadr instruction)) (loop (cdr prog))))
-                ((jump-if-neg)  (if (< *accumulator* 0)   (loop (cadr instruction)) (loop (cdr prog))))
+                ((jump-if-zero) (if (zero? (hrm-state-accumulator stat)) (loop (cadr instruction)) (loop (cdr prog))))
+                ((jump-if-neg)  (if (< (hrm-state-accumulator stat) 0)   (loop (cadr instruction)) (loop (cdr prog))))
                 (else
-                 (begin (apply (car instruction) (cdr instruction))
+                 (begin (apply (car instruction) stat (cdr instruction))
                         (loop (cdr prog)))))))))
 
 ;;;;;;
@@ -109,9 +116,10 @@
     init
     ))
 
-(set! *input* (list 1 2 3 4 5 6 7 8 9 10 0))
-(memory-set! 0 0)                       ; initialize
-(hrm-execute! program-add-all)
+(define stat (make-hrm-state (make-vector 25 #f) #f ()))
+(set! (hrm-state-inputs stat) (list 1 2 3 4 5 6 7 8 9 10 0))
+(memory-set! stat 0 0)                       ; initialize
+(hrm-execute! stat program-add-all)
 
 ;;;;;;;;;
 
@@ -124,9 +132,9 @@
      (outbox))
    ))
 
-(set! *input* (list 1 2 3 4 5 6 7 8 9 10 0))
-(memory-set! 0 0)                       ; initialize
-(hrm-execute! program-add-converted)
+(set! (hrm-state-inputs stat) (list 1 2 3 4 5 6 7 8 9 10 0))
+(memory-set! stat 0 0)                       ; initialize
+(hrm-execute! stat program-add-converted)
 
 ;;;;;;;;;;;;;;;;
 
