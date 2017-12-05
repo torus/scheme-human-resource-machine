@@ -127,3 +127,27 @@
 (set! *input* (list 1 2 3 4 5 6 7 8 9 10 0))
 (memory-set! 0 0)                       ; initialize
 (hrm-execute! program-add-converted)
+
+;;;;;;;;;;;;;;;;
+
+#;(define program-multiply
+  (convert-program
+   `(:start
+     (inbox)
+     (copyto :a)
+     (inbox)
+     (copyto :b)
+
+     :loop
+     (copyfrom :b)
+     (jump-if-zero :end)
+     (copyfrom :a)
+     (add :sum)
+     (bump- :b)
+     (jump :loop)
+
+     :end
+     (copyfrom :sum)
+     (outbox)
+     (jump :start)
+     )))
