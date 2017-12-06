@@ -117,10 +117,20 @@
     init
     ))
 
+(define (expects . lis)
+  (let ((expected lis))
+    (lambda (val)
+      (if (null? lis)
+          (print "ERROR! Too many outputs!")
+          (let ((exp (car expected)))
+            (unless (eq? val exp)
+                    (print #`"ERROR! ,exp expected, but got ,val"))
+            (set! expected (cdr expected)))))))
+
 (hrm-execute! (make-hrm-state (make-vector 1 0)
                               #f
                               (list 1 2 3 4 5 6 7 8 9 10 0)
-                              print)
+                              (expects 55))
               program-add-all)
 
 ;;;;;;;;;
@@ -137,7 +147,7 @@
 (hrm-execute! (make-hrm-state (make-vector 1 0)
                               #f
                               (list 1 2 3 4 5 6 7 8 9 10 0)
-                              print)
+                              (expects 3))
               program-add-converted)
 
 ;;;;;;;;;;;;;;;;
